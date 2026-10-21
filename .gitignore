@@ -2,3 +2,7 @@
 .venv/
 __pycache__/
 *.pyc
+rate_limiter.db
+rate_limiter.db-journal
+rate_limiter.db-wal
+rate_limiter.db-shm

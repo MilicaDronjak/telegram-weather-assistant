@@ -8,13 +8,8 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
-import json
-from datetime import date, timedelta
-from groq import Groq
-import requests
 from weather_service import analiziraj_pitanje, preuzmi_prognozu
-
-
+from rate_limiter import proveri_ogranicenje
 
 # Učitava telegram token i api key iz .env fajla
 load_dotenv()
@@ -30,7 +25,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 #Kada korisnik posalje poruku ovde se obrađuje
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    korisnik = f"telegram:{update.effective_user.id}"
+
+    dozvoljeno = proveri_ogranicenje(korisnik)
+
+    if not dozvoljeno:
+        await update.message.reply_text(
+            "Poslali ste previše poruka. Pokušajte ponovo kasnije."
+        )
+        return
+
     korisnicka_poruka = update.message.text
+
     try:
         podaci = analiziraj_pitanje(korisnicka_poruka)
 

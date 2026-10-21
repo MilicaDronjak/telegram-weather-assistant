@@ -33,6 +33,7 @@ try {
     naziv.textContent = "Bot: ";
     bot.appendChild(naziv);
     bot.appendChild(document.createTextNode(podaci.odgovor));    
+
     chat.appendChild(bot);
 
 } catch (greska) {

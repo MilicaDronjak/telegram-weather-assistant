@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, session
 from weather_service import analiziraj_pitanje, preuzmi_prognozu
+from rate_limiter import proveri_ogranicenje
 
 app = Flask(__name__)
 
@@ -17,6 +18,15 @@ def pocetna():
 @app.route("/chat", methods=["POST"])
 def chat():
     try:
+        korisnik = f"web:{request.remote_addr}"
+
+        dozvoljeno = proveri_ogranicenje(korisnik)
+
+        if not dozvoljeno:
+            return jsonify ({
+                "odgovor": "Poslali ste previše poruka. Pokušajte ponovo kasnije."
+                }), 429
+
         podaci = request.get_json()
         poruka = podaci.get("poruka", "").strip()
 
@@ -29,9 +39,6 @@ def chat():
         datum = analiza.get("datum") or session.get("datum")
         tip = analiza.get("tip", "dnevno") or session.get("tip") or "dnevno"
         sat = analiza.get("sat") or session.get("sat")
-
-        if sat is None:
-            sat = session.get("sat")
 
         session["lokacija"] = lokacija
         session["datum"] = datum
@@ -53,7 +60,6 @@ def chat():
     except Exception as e:
         print("Greška:", e)
         return jsonify({"odgovor": "Došlo je do greške pri obradi pitanja."}), 500
-
 
 if __name__ == "__main__":
     app.run(debug=True)
