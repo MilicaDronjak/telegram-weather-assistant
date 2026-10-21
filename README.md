@@ -1,7 +1,7 @@
 
 # Telegram Weather Assistant
 
-Telegram bot koji koristi vestačku inteligenciju za razumevanje korisničkih pitanja i prikaz vremenske prognoze.
+Telegram bot koji koristi vestačku inteligenciju za razumevanje korisničkih pitanja i prikaz vremenske prognoze. Korisnik može da komunicira sa asistentom putem Telegram bota ili veb-chata.
 
 ## Funkcionalnosti
 
@@ -9,9 +9,10 @@ Telegram bot koji koristi vestačku inteligenciju za razumevanje korisničkih pi
 - Dnevna vremenska prognoza
 - Prognoza temperature za određene sate
 - Verovatnoća i očekivana količina padavina
-- Prepoznavanje grada, datuma i sata iz prirodnogjezika
+- Prepoznavanje grada, datuma i sata iz prirodnog jezika
 - Pamćenje podataka kroz vise poruka
 - Obrada nepoznatih gradova i nedostupnih datuma
+- Komunikacija sa asistentom putem Telegram bota i veb-chata 
 
 ## Koriscene tehnologije
 
@@ -22,6 +23,10 @@ Telegram bot koji koristi vestačku inteligenciju za razumevanje korisničkih pi
 - python-telegram-bot
 - requests
 - python-dotenv
+- Flask
+- HTML
+- CSS
+- JavaScript
 
 ## Pokretanje projekta
 
@@ -36,8 +41,13 @@ Telegram bot koji koristi vestačku inteligenciju za razumevanje korisničkih pi
 5. Napraviti `.env` fajl i uneti:
    TELEGRAM_BOT_TOKEN=telegram_token
    GROQ_API_KEY=groq_api_kljuc
-6. Pokrenuti bota:
+   FLASK_SECRET_KEY=tajni_kljuc
+6. Za pokretanje Telegram bota:
    python bot.py
+7. Za pokretanje veb-chata:
+   python web_app.py
+8. Adresa web-chat-a
+   http://127.0.0.1:5000
 
 ## Primeri pitanja
 
@@ -48,7 +58,7 @@ Telegram bot koji koristi vestačku inteligenciju za razumevanje korisničkih pi
 
 ## Nacin rada
 
-1. Korisnik šalje pitanje Telegram botu.
+1. Korisnik postavlja pitanje putem Telegram bota ili veb-chata.
 2. Groq AI analizira pitanje i izdvaja lokaciju, datu, tip pitanja i sat.
 3. Ako neki podatak nedostaje, bot traži dopunu i pamti prethodne unete podatke.
 4. Pomoću Open-Meteo Geocoding API-ja bot pronalazi geografske koordinate lokacije.

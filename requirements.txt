@@ -2,3 +2,4 @@ python-telegram-bot>=21,<23 #komunikaciju sa Telegramom
 groq #povezivanje sa AI modelom
 requests #preuzimanje vremenskih podataka
 python-dotenv #učitavanje API ključeva iz .env fajla
+flask #pokretanje veb aplikacije
