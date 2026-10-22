@@ -8,19 +8,18 @@ from groq import Groq
 
 load_dotenv()
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 if not GROQ_API_KEY:
     raise ValueError("Groq API kljuc nije pronadjen u .env fajlu!")
 
+#komuniciramo sa api-jem
 groq_client = Groq(api_key=GROQ_API_KEY)
 
-def analiziraj_pitanje(poruka):
+def analiziraj_pitanje(poruka, klijent=groq_client): #klijent=groq_client da bi mogli da koristimo razlicite klijente za pozivanje api-ja
     danas=date.today().isoformat()
 
-    odgovor=groq_client.chat.completions.create(
+    odgovor=klijent.chat.completions.create(
         model="openai/gpt-oss-120b",
         messages=[
             {
@@ -70,6 +69,72 @@ def analiziraj_pitanje(poruka):
 
     return podaci
 
+#separation of concerns
+def pronadji_grad (lokacija):
+
+    geo_url = "https://geocoding-api.open-meteo.com/v1/search"
+
+    geo_odgovor = requests.get(
+        geo_url,
+        params={
+            "name": lokacija,
+            "count": 1,
+            "language": "sr"
+        },
+        timeout=10
+    )
+    geo_odgovor.raise_for_status()
+
+    gradovi = geo_odgovor.json().get("results", [])
+
+    if not gradovi:
+        return None
+
+    latitude = gradovi[0]["latitude"]
+    longitude = gradovi[0]["longitude"]
+
+    return latitude, longitude
+
+def preuzmi_podatke(url, parametri):
+    odgovor = requests.get(url, params=parametri, timeout=10)
+    odgovor.raise_for_status()
+    return odgovor.json()
+
+def proveri_nedostajuce_podatke(lokacija, datum, tip, sat):
+    if not lokacija:
+        return "Za koji grad želiš vremensku prognozu?"
+
+    if not datum:
+        return "Za koji datum želiš vremensku prognozu?"
+
+    if tip == "satna_temperatura" and sat is None:
+        return "Za koji sat želiš vremensku prognozu?"
+
+    return None
+
+def spoji_podatke(novi_podaci, stari_podaci):
+    lokacija = novi_podaci.get("lokacija") or stari_podaci.get("lokacija")
+    datum = novi_podaci.get("datum") or stari_podaci.get("datum")
+
+    tip = novi_podaci.get("tip") or stari_podaci.get("tip") or "dnevno"
+    sat = novi_podaci.get("sat")
+
+    if (
+        novi_podaci.get("lokacija") is None
+        and novi_podaci.get("tip") == "dnevno"
+        and novi_podaci.get("sat") is None
+        and stari_podaci.get("tip") == "satna_temperatura"
+    ):
+        tip = "satna_temperatura"
+        sat = stari_podaci.get("sat")
+
+    return {
+        "lokacija": lokacija,
+        "datum": datum,
+        "tip": tip,
+        "sat": sat
+    }
+    
 def preuzmi_prognozu(lokacija, datum, tip, sat=None): 
     
     if tip != "trenutno":
@@ -89,27 +154,13 @@ def preuzmi_prognozu(lokacija, datum, tip, sat=None):
                 "Prognoza za taj datum jos nije dostupna. "
                 "Mogu da prikazem prognozu za narednih 16 dana."
             )
+        
+    koordinate = pronadji_grad(lokacija)
 
-    geo_url = "https://geocoding-api.open-meteo.com/v1/search"
+    if koordinate is None:
+        return "Nisam uspeo da pronađem taj grad"
 
-    geo_odgovor = requests.get(
-        geo_url,
-        params={
-            "name": lokacija,
-            "count": 1,
-            "language": "sr"
-        },
-        timeout=10
-    )
-    geo_odgovor.raise_for_status()
-
-    gradovi = geo_odgovor.json().get("results", [])
-
-    if not gradovi:
-        return "Nisam uspeo da pronadjem taj grad."
-
-    latitude = gradovi[0]["latitude"]
-    longitude = gradovi[0]["longitude"]
+    latitude, longitude = koordinate
 
     weather_url = "https://api.open-meteo.com/v1/forecast"
 
@@ -121,14 +172,7 @@ def preuzmi_prognozu(lokacija, datum, tip, sat=None):
             "timezone": "auto"
         }
 
-        odgovor = requests.get(
-            weather_url,
-            params=parametri,
-            timeout=10
-        )
-        odgovor.raise_for_status()
-
-        trenutno = odgovor.json()["current"]
+        trenutno = preuzmi_podatke(weather_url, parametri)["current"]
 
         temperatura = trenutno["temperature_2m"]
         osecaj = trenutno["apparent_temperature"]
@@ -152,14 +196,8 @@ def preuzmi_prognozu(lokacija, datum, tip, sat=None):
             "end_date": datum
         }
 
-        odgovor = requests.get(
-            weather_url,
-            params=parametri,
-            timeout=10
-        )
-        odgovor.raise_for_status()
+        satni = preuzmi_podatke(weather_url, parametri)["hourly"]
 
-        satni = odgovor.json()["hourly"]
         if sat is None:
             return "Napiši za koliko sati želiš prognozu."
 
@@ -190,14 +228,7 @@ def preuzmi_prognozu(lokacija, datum, tip, sat=None):
                 "end_date": datum
             }
 
-            odgovor = requests.get(
-                weather_url,
-                params=parametri,
-                timeout=10
-            )
-            odgovor.raise_for_status()
-
-            satni = odgovor.json()["hourly"]
+            satni = preuzmi_podatke(weather_url, parametri)["hourly"]
 
             trazeni_sat = f"{datum}T{sat:02d}:00"
 
@@ -227,14 +258,7 @@ def preuzmi_prognozu(lokacija, datum, tip, sat=None):
                 "end_date": datum
             }
 
-            odgovor = requests.get(
-                weather_url,
-                params=parametri,
-                timeout=10
-            )
-            odgovor.raise_for_status()
-
-            dnevni = odgovor.json()["daily"]
+            dnevni = preuzmi_podatke(weather_url, parametri)["daily"]
 
             verovatnoca = dnevni["precipitation_probability_max"][0]
             kolicina = dnevni["precipitation_sum"][0]
@@ -256,14 +280,7 @@ def preuzmi_prognozu(lokacija, datum, tip, sat=None):
             "end_date": datum
         }
 
-        odgovor = requests.get(
-            weather_url,
-            params=parametri,
-            timeout=10
-        )
-        odgovor.raise_for_status()
-
-        dnevni = odgovor.json()["daily"]
+        dnevni = preuzmi_podatke(weather_url, parametri)["daily"]
 
         max_temp = dnevni["temperature_2m_max"][0]
         min_temp = dnevni["temperature_2m_min"][0]
@@ -277,8 +294,6 @@ def preuzmi_prognozu(lokacija, datum, tip, sat=None):
             f"Verovatnoca padavina: {kisa}%"
         )
 
-            
-        
 
 
         

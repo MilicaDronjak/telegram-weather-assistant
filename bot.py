@@ -8,7 +8,7 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
-from weather_service import analiziraj_pitanje, preuzmi_prognozu
+from weather_service import analiziraj_pitanje, preuzmi_prognozu, proveri_nedostajuce_podatke, spoji_podatke
 from rate_limiter import proveri_ogranicenje
 
 # Učitava telegram token i api key iz .env fajla
@@ -22,6 +22,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Zdravo! Ja sam Weather Assistant bot. \n"
         "Pitaj me kakvo je vreme u nekom gradu!"
     )
+
+def sacuvaj_podatke(stanje, lokacija, datum, tip, sat):
+    stanje["lokacija"] = lokacija
+    stanje["datum"] = datum
+    stanje["tip"] = tip
+    stanje["sat"] = sat
 
 #Kada korisnik posalje poruku ovde se obrađuje
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -41,44 +47,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         podaci = analiziraj_pitanje(korisnicka_poruka)
 
-        lokacija = context.user_data.get("lokacija")
-        datum = context.user_data.get("datum")
-        tip = context.user_data.get("tip")
-        sat = context.user_data.get("sat")
+        stari_podaci = context.user_data
 
-        if podaci.get("lokacija") is not None:
-            lokacija = podaci["lokacija"]
+        podaci = spoji_podatke(podaci, stari_podaci)
 
-        if podaci.get("datum") is not None:
-            datum = podaci["datum"]
+        lokacija = podaci["lokacija"]
+        datum = podaci["datum"]
+        tip = podaci["tip"]
+        sat = podaci["sat"]
 
-        if not tip:
-            tip = podaci.get("tip", "dnevno")
+        sacuvaj_podatke(context.user_data, lokacija, datum, tip, sat)
 
-        if podaci.get("sat") is not None:
-            sat = podaci["sat"]
+        odgovor = proveri_nedostajuce_podatke(lokacija, datum, tip, sat)
 
-        context.user_data["lokacija"] = lokacija
-        context.user_data["datum"] = datum
-        context.user_data["tip"] = tip
-        context.user_data["sat"] = sat
-
-        if not lokacija:
-            await update.message.reply_text(
-                "Za koji grad zelis vremensku prognozu?"
-            )
-            return
-
-        if not datum:
-            await update.message.reply_text(
-                "Za koji datum zelis vremensku prognozu?"
-            )
-            return
-        
-        if tip == "satna_temperatura" and sat is None:
-            await update.message.reply_text(
-                "Za koji sat želiš vremensku prognozu?"
-            )
+        if odgovor is not None:
+            await update.message.reply_text(odgovor)
             return
 
         prognoza = preuzmi_prognozu(lokacija, datum, tip, sat)

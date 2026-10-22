@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, session
-from weather_service import analiziraj_pitanje, preuzmi_prognozu
+from weather_service import analiziraj_pitanje, preuzmi_prognozu, proveri_nedostajuce_podatke, spoji_podatke
 from rate_limiter import proveri_ogranicenje
 
 app = Flask(__name__)
@@ -14,6 +14,11 @@ app.secret_key = os.environ["FLASK_SECRET_KEY"]
 def pocetna():
     return render_template("index.html")
 
+def sacuvaj_podatke(lokacija, datum, tip, sat):
+    session["lokacija"] = lokacija
+    session["datum"] = datum
+    session["tip"] = tip
+    session["sat"] = sat
 
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -35,23 +40,18 @@ def chat():
 
         analiza = analiziraj_pitanje(poruka)
 
-        lokacija = analiza.get("lokacija") or session.get("lokacija")
-        datum = analiza.get("datum") or session.get("datum")
-        tip = analiza.get("tip", "dnevno") or session.get("tip") or "dnevno"
-        sat = analiza.get("sat") or session.get("sat")
+        podaci = spoji_podatke(analiza, session)
 
-        session["lokacija"] = lokacija
-        session["datum"] = datum
-        session["tip"] = tip
-        session["sat"] = sat
+        lokacija = podaci["lokacija"]
+        datum = podaci["datum"]
+        tip = podaci["tip"]
+        sat = podaci["sat"]
 
-        if not lokacija:
-            odgovor = "Za koji grad želiš vremensku prognozu?"
-        elif not datum:
-            odgovor = "Za koji datum želiš vremensku prognozu?"
-        elif tip == "satna_temperatura" and sat is None:
-            odgovor = "Za koji sat želiš vremensku prognozu?"
-        else:
+        sacuvaj_podatke(lokacija, datum, tip, sat)
+
+        odgovor = proveri_nedostajuce_podatke(lokacija, datum, tip, sat)
+
+        if odgovor is None:
             odgovor = preuzmi_prognozu(lokacija, datum, tip, sat)
             session.clear()
 

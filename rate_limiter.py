@@ -17,32 +17,45 @@ def napravi_tabelu():
             )
         """)
 
-def proveri_ogranicenje(korisnik):
-    sada = time.time()
+def obrisi_stare_zahteve(konekcija, sada):
+    konekcija.execute(
+        "DELETE FROM zahtevi WHERE vreme <= ?",
+        (sada - period,)
+    )
+
+def prebroj_zahteve(konekcija, korisnik):
+    rezultat = konekcija.execute(
+        "SELECT COUNT(*) FROM zahtevi WHERE korisnik = ?",
+        (korisnik,)
+    )
+
+    return rezultat.fetchone()[0]
+
+def sacuvaj_zahtev(konekcija, korisnik, sada):
+    konekcija.execute(
+        "INSERT INTO zahtevi (korisnik, vreme) VALUES (?, ?)",
+        (korisnik, sada)
+    )
+
+
+def proveri_ogranicenje(korisnik, vreme_funkcija=time.time):
+    sada = vreme_funkcija()
 
     with sqlite3.connect(BAZA, timeout=10) as konekcija:
         konekcija.execute("BEGIN IMMEDIATE")
 
-        konekcija.execute(
-            "DELETE FROM zahtevi WHERE vreme <= ?",
-            (sada - period,)
-        )
+        obrisi_stare_zahteve(konekcija, sada)
 
-        rezultat = konekcija.execute(
-            "SELECT COUNT(*) FROM zahtevi WHERE korisnik = ?",
-            (korisnik,)
-        )
-
-        broj_zahteva = rezultat.fetchone()[0]
+        broj_zahteva = prebroj_zahteve(konekcija, korisnik)
 
         if broj_zahteva >= max_zahteva:
             return False
 
-        konekcija.execute(
-            "INSERT INTO zahtevi (korisnik, vreme) VALUES (?, ?)",
-            (korisnik, sada)
-        )
+        sacuvaj_zahtev(konekcija, korisnik, sada)
 
         return True
 
-napravi_tabelu()
+#def lazno_vreme():
+#    return 1000
+
+#print(proveri_ogranicenje("test123", vreme_funkcija=lazno_vreme))
