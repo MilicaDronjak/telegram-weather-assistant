@@ -1,8 +1,20 @@
 import os
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, session
 from weather_service import analiziraj_pitanje, preuzmi_prognozu, proveri_nedostajuce_podatke, spoji_podatke
 from rate_limiter import proveri_ogranicenje
+from intent_service import prepoznaj_nameru
+from calendar_service import (
+    povezi_kalendar,
+    dogadjaji_za_dan,
+    pretvori_datum,
+    proveri_slobodan_termin,
+    dodaj_dogadjaj,
+    pronadji_tacan_dogadjaj,
+    izmeni_dogadjaj,
+    obrisi_dogadjaj
+)
 
 app = Flask(__name__)
 
@@ -34,10 +46,402 @@ def chat():
 
         podaci = request.get_json()
         poruka = podaci.get("poruka", "").strip()
+        
+        # 1. Obrada potvrda za kalendar
+        #potvrda za brisanje dogadjaja
+        if session.get("ceka_potvrdu_brisanja"):
+            odgovor_korisnika = poruka.strip().lower()
+
+            if odgovor_korisnika in ["da", "potvrdi"]:
+                podaci_brisanja = session["brisanje_dogadjaja"]
+
+                try:
+                    service = povezi_kalendar()
+
+                    obrisi_dogadjaj(
+                        service,
+                        podaci_brisanja["event_id"]
+                    )
+
+                    return jsonify ({
+                        "odgovor": "Događaj je uspešno obrisan iz kalendara."
+                    })
+
+                except Exception as e:
+                    print("Greška pri brisanju događaja:", e)
+
+                    return jsonify({
+                        "odgovor": "Brisanje događaja nije uspelo."
+                    })
+
+                finally:
+                    session.pop("ceka_potvrdu_brisanja", None)
+                    session.pop("brisanje_dogadjaja", None)
+
+            if odgovor_korisnika in ["ne", "otkaži", "otkazi"]:
+                session.pop("ceka_potvrdu_brisanja", None)
+                session.pop("brisanje_dogadjaja", None)
+
+                return jsonify({
+                    "odgovor": "Brisanje događaja je otkazano."
+                })
+
+            return jsonify({
+                "odgovor": "Odgovori sa 'da' za potvrdu ili 'ne' za otkazivanje."
+            })
+
+        #potvrda za izmenu dogadjaja
+        if session.get("ceka_potvrdu_izmene"):
+
+            odgovor_korisnika = poruka.strip().lower()
+
+            if odgovor_korisnika in ["da", "potvrdi"]:
+                podaci = session["izmena_dogadjaja"]
+
+                try:
+                    novi_pocetak = datetime.fromisoformat(
+                        f"{podaci['novi_datum']}T{podaci['novo_vreme']}"
+                    ).astimezone()
+
+                    trajanje = timedelta(
+                        seconds=podaci["trajanje_sekunde"]
+                    )
+
+                    novi_kraj = novi_pocetak + trajanje
+
+                    novi_podaci = {
+                        "start": {
+                            "dateTime": novi_pocetak.isoformat()
+                        },
+                        "end": {
+                            "dateTime": novi_kraj.isoformat()
+                        }
+                    }
+
+                    service = povezi_kalendar()
+
+                    izmeni_dogadjaj(
+                        service,
+                        podaci["event_id"],
+                        novi_podaci
+                    )
+
+                    return jsonify({
+                        "odgovor": "Događaj je uspešno izmenjen."
+                    })
+
+                except Exception as e:
+                    print("Greška pri izmeni događaja:", e)
+
+                    return jsonify({
+                        "odgovor": "Nije uspela izmena događaja."
+                    })
+
+                finally:
+                    session.pop("ceka_potvrdu_izmene", None)
+                    session.pop("izmena_dogadjaja", None)
+
+            if odgovor_korisnika in ["ne", "otkaži", "otkazi"]:
+                session.pop("ceka_potvrdu_izmene", None)
+                session.pop("izmena_dogadjaja", None)
+
+                return jsonify({
+                    "odgovor": "Izmena događaja je otkazana."
+                })
+
+            return jsonify({
+                "odgovor": "Odgovori sa 'da' za potvrdu ili 'ne' za otkazivanje."
+            })
+
+        #potvrda za dodavanje dogadjaja
+        if session.get("ceka_potvrdu_dogadjaja"):
+
+            odgovor_korisnika = poruka.lower()
+
+            if odgovor_korisnika in ["da", "potvrdi"]:
+                podaci_dogadjaja = session["novi_dogadjaj"]
+
+                service = povezi_kalendar()
+
+                dodaj_dogadjaj(
+                    service,
+                    podaci_dogadjaja["naziv"],
+                    podaci_dogadjaja["datum"],
+                    podaci_dogadjaja["vreme"]
+                )
+
+                session.pop("ceka_potvrdu_dogadjaja", None)
+                session.pop("novi_dogadjaj", None)
+
+                return jsonify({
+                    "odgovor": "Događaj je uspešno dodat u kalendar."
+                })
+
+            if odgovor_korisnika in ["ne", "otkaži", "otkazi"]:
+                session.pop("ceka_potvrdu_dogadjaja", None)
+                session.pop("novi_dogadjaj", None)
+
+                return jsonify({
+                    "odgovor": "Dodavanje događaja je otkazano."
+                })
+
+            return jsonify({
+                "odgovor": "Odgovori sa 'da' za potvrdu ili 'ne' za otkazivanje."
+            })
 
         if not poruka:
-            return jsonify({"odgovor": "Unesi pitanje o vremenu."})
+            return jsonify({"odgovor": "Unesi pitanje o vremenu ili kalendaru."})
 
+        namera = prepoznaj_nameru(poruka)
+
+        # 2. Obrada novih zahteva za kalendar
+        if namera["namera"] == "kalendar":
+
+            # Pregled događaja
+            if namera["akcija"] == "pregled":
+
+                if namera["datum"] is None:
+                    return jsonify({
+                        "odgovor": "Za koji datum želiš da proverim kalendar?"
+                    })
+
+                datum = pretvori_datum(namera["datum"])
+
+                service = povezi_kalendar()
+                dogadjaji = dogadjaji_za_dan(service, datum)
+
+                if dogadjaji:
+                    odgovor = f"Događaji za {datum}:\n"
+
+                    for dogadjaj in dogadjaji:
+                        naziv = dogadjaj.get("summary", "Bez naziva")
+                        odgovor += f"- {naziv}\n"
+                else:
+                    odgovor = "Nema događaja za taj dan."
+
+                return jsonify({"odgovor": odgovor})
+
+            # Provera slobodnog termina
+            if namera["akcija"] == "provera_termina":
+
+                if not all([
+                    namera.get("datum"),
+                    namera.get("vreme"),
+                    namera.get("vreme_kraja")
+                ]):
+                    return jsonify({
+                        "odgovor": "Navedi datum, početak i kraj termina koji želiš da proverim."
+                    })
+
+                datum = pretvori_datum(namera["datum"])
+
+                pocetak = datetime.fromisoformat(
+                    f"{datum}T{namera['vreme']}"
+                ).astimezone()
+
+                kraj = datetime.fromisoformat(
+                    f"{datum}T{namera['vreme_kraja']}"
+                ).astimezone()
+
+                if kraj <= pocetak:
+                    return jsonify({
+                        "odgovor": "Kraj termina mora biti posle početka."
+                    })
+
+                service = povezi_kalendar()
+
+                slobodno = proveri_slobodan_termin(
+                    service, pocetak, kraj
+                )
+
+                if slobodno:
+                    odgovor = f"Slobodna si {datum} od {namera['vreme']} do {namera['vreme_kraja']}."
+                else:
+                    odgovor = f"Zauzeta si {datum} od {namera['vreme']} do {namera['vreme_kraja']}."
+
+                return jsonify({"odgovor": odgovor})
+
+            # Dodavanje događaja
+            if namera["akcija"] == "dodavanje":
+
+                if not all([
+                    namera.get("naziv"),
+                    namera.get("datum"),
+                    namera.get("vreme")
+                ]):
+                    return jsonify({
+                        "odgovor": "Navedi naziv događaja, datum i vreme početka."
+                    })
+
+                datum = pretvori_datum(namera["datum"])
+
+                try:
+                    datetime.fromisoformat(f"{datum}T{namera['vreme']}")
+                except ValueError:
+                    return jsonify({
+                        "odgovor": "Datum ili vreme nisu ispravni."
+                    })
+
+                session["novi_dogadjaj"] = {
+                    "naziv": namera["naziv"],
+                    "datum": datum,
+                    "vreme": namera["vreme"]
+                }
+
+                session["ceka_potvrdu_dogadjaja"] = True
+
+                return jsonify({
+                    "odgovor": (
+                        f"Da li želiš da dodam događaj '{namera['naziv']}' "
+                        f"za {datum} u {namera['vreme']}? "
+                        "Podrazumevano trajanje je jedan sat. "
+                        "Odgovori sa 'da' ili 'ne'."
+                    )
+                })
+
+            # Izmena događaja
+            if namera["akcija"] == "izmena":
+
+                if not all ([
+                    namera.get("naziv"),
+                    namera.get("datum"),
+                    namera.get("vreme"),
+                    namera.get("novi_datum"),
+                    namera.get("novo_vreme"),
+                ]):
+                    return jsonify({
+                        "odgovor": "Navedi naziv događaja, postojeći datum i vreme, kao i novi datum i vreme."
+                    })
+
+                stari_datum = pretvori_datum(namera["datum"])
+                novi_datum = pretvori_datum(namera["novi_datum"])
+
+                try: 
+                    datetime.fromisoformat(
+                        f"{stari_datum}T{namera['vreme']}"
+                    )
+                    datetime.fromisoformat(
+                        f"{novi_datum}T{namera['novo_vreme']}"
+                    )
+                except (ValueError, TypeError):
+                    return jsonify({
+                        "odgovor": "Datum ili vreme nisu ispravni."
+                    })
+
+                service = povezi_kalendar()
+
+                dogadjaji = pronadji_tacan_dogadjaj(
+                    service,
+                    namera["naziv"],
+                    stari_datum,
+                    namera["vreme"]
+                )
+
+                if len(dogadjaji) == 0:
+                    return jsonify({
+                        "odgovor": "Nisam pronašao događaj sa tim podacima."
+                    })
+
+                if len (dogadjaji) > 1:
+                    return jsonify({
+                        "odgovor": "Pronađeno je više događaja sa istim podacima."
+                    })
+
+                dogadjaj = dogadjaji[0]
+
+                pocetak = datetime.fromisoformat(
+                    dogadjaj["start"]["dateTime"]
+                )
+
+                kraj = datetime.fromisoformat(
+                    dogadjaj["end"]["dateTime"]
+                )
+
+                trajanje = kraj - pocetak
+
+                session["izmena_dogadjaja"] = {
+                    "event_id": dogadjaj["id"],
+                    "naziv": dogadjaj["summary"],
+                    "novi_datum": novi_datum,
+                    "novo_vreme": namera["novo_vreme"],
+                    "trajanje_sekunde": trajanje.total_seconds()
+                }
+
+                session["ceka_potvrdu_izmene"] = True
+
+                return jsonify({
+                    "odgovor": (
+                        f"Da li želiš da promenim događaj '{dogadjaj['summary']}' "
+                        f"sa {stari_datum} u {namera['vreme']} "
+                        f"na {novi_datum} u {namera['novo_vreme']}? "
+                        "Odgovori sa 'da' ili 'ne'."
+                    )
+                })
+
+            #Brisanje dogadjaja
+            if namera["akcija"] == "brisanje":
+                if not all([
+                    namera.get("naziv"),
+                    namera.get("datum"),
+                    namera.get("vreme")
+                ]):
+                    return jsonify({
+                        "odgovor": "Navedi naziv događaja, natum ivreme događaja koji želiš da obrišes."
+                    })
+
+                datum = pretvori_datum(namera["datum"])
+
+                try:
+                    datetime.fromisoformat(f"{datum}T{namera['vreme']}")
+                except (ValueError, TypeError):
+                    return jsonify({
+                        "odgovor": "Datum ili vreme nisu ispravni."
+                    })
+
+                service = povezi_kalendar()
+
+                dogadjaji = pronadji_tacan_dogadjaj(
+                    service,
+                    namera["naziv"],
+                    datum,
+                    namera["vreme"]
+                )
+
+                if len(dogadjaji) == 0:
+                    return jsonify({
+                        "odgovor": "Nisam pronašao događaj sa tim podacima."
+                    })
+
+                if len(dogadjaji) > 1:
+                    return jsonify({
+                        "odgovor": "Pronađeno je više događaja sa istim podacima."
+                    })
+
+                dogadjaj = dogadjaji[0]
+
+                session["brisanje_dogadjaja"] = {
+                    "event_id": dogadjaj["id"],
+                    "naziv": dogadjaj["summary"],
+                    "datum": datum,
+                    "vreme": namera["vreme"]
+                }
+
+                session["ceka_potvrdu_brisanja"] = True
+
+                return jsonify({
+                    "odgovor": (
+                        f"Da li želiš da obrišem događaj '{dogadjaj['summary']}' "
+                        f"za {datum} u {namera['vreme']}? "
+                        "Odgovori sa 'da' ili 'ne'."
+                    )
+                })
+
+            return jsonify({
+                "odgovor": "Ta akcija kalendara još nije podržana."
+            })
+
+
+        # 3. Obrada zahteva za vremensku prognozu
         analiza = analiziraj_pitanje(poruka)
 
         podaci = spoji_podatke(analiza, session)
@@ -63,3 +467,4 @@ def chat():
 
 if __name__ == "__main__":
     app.run(debug=True)
+        

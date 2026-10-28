@@ -3,3 +3,6 @@ groq #povezivanje sa AI modelom
 requests #preuzimanje vremenskih podataka
 python-dotenv #učitavanje API ključeva iz .env fajla
 flask #pokretanje veb aplikacije
+google-api-python-client #komunikacija sa Google Calendar API-jem
+google-auth-oauthlib #Google OAuth autorizacija
+google-auth-httplib2 #podrška za Google API komunikaciju

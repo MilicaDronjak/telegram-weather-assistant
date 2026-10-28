@@ -2,8 +2,8 @@ import time
 import sqlite3
 from pathlib import Path
 
-max_zahteva = 5
-period = 120
+max_zahteva = 10
+period = 60
 
 BAZA = Path(__file__).resolve().parent / "rate_limiter.db"
 
