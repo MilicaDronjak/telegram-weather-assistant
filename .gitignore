@@ -8,3 +8,5 @@ rate_limiter.db-wal
 rate_limiter.db-shm
 credentials.json
 token.json
+.pytest_cache/
+.coverage

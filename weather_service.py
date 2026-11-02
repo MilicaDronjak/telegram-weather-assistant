@@ -120,7 +120,8 @@ def spoji_podatke(novi_podaci, stari_podaci):
     sat = novi_podaci.get("sat")
 
     if (
-        novi_podaci.get("lokacija") is None
+        stari_podaci.get("lokacija") is None
+        and novi_podaci.get("lokacija") is not None
         and novi_podaci.get("tip") == "dnevno"
         and novi_podaci.get("sat") is None
         and stari_podaci.get("tip") == "satna_temperatura"
@@ -141,18 +142,18 @@ def preuzmi_prognozu(lokacija, datum, tip, sat=None):
         try:
             trazeni_datum = date.fromisoformat(datum)
         except (ValueError, TypeError):
-            return "Datum nije ispravan. Pokusaj sa formatom YYYY-MM-DD."
+            return "Datum nije ispravan. Pokušaj sa formatom YYYY-MM-DD."
 
         danas = date.today()
         poslednji_datum = danas + timedelta(days=15)
 
         if trazeni_datum < danas:
-            return "Ne mogu da prikazem prognozu za datum koji je prosao."
+            return "Ne mogu da prikažem prognozu za datum koji je prošao."
 
         if trazeni_datum > poslednji_datum:
             return (
-                "Prognoza za taj datum jos nije dostupna. "
-                "Mogu da prikazem prognozu za narednih 16 dana."
+                "Prognoza za taj datum još nije dostupna. "
+                "Mogu da prikažem prognozu za narednih 16 dana."
             )
         
     koordinate = pronadji_grad(lokacija)
@@ -204,7 +205,7 @@ def preuzmi_prognozu(lokacija, datum, tip, sat=None):
         trazeni_sat = f"{datum}T{sat:02d}:00"
 
         if trazeni_sat not in satni["time"]:
-            return "Prognoza za trazeni sat nije dostupna."
+            return "Prognoza za traženi sat nije dostupna."
 
         indeks = satni["time"].index(trazeni_sat)
         temperatura = satni["temperature_2m"][indeks]
@@ -233,7 +234,7 @@ def preuzmi_prognozu(lokacija, datum, tip, sat=None):
             trazeni_sat = f"{datum}T{sat:02d}:00"
 
             if trazeni_sat not in satni["time"]:
-                return "Prognoza padavina za trazeni sat nije dostupna."
+                return "Prognoza padavina za traženi sat nije dostupna."
 
             indeks = satni["time"].index(trazeni_sat)
 
@@ -293,6 +294,9 @@ def preuzmi_prognozu(lokacija, datum, tip, sat=None):
             f"Minimalna temperatura: {min_temp}°C\n"
             f"Verovatnoca padavina: {kisa}%"
         )
+
+
+
 
 
 

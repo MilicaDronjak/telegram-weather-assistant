@@ -54,8 +54,3 @@ def proveri_ogranicenje(korisnik, vreme_funkcija=time.time):
         sacuvaj_zahtev(konekcija, korisnik, sada)
 
         return True
-
-#def lazno_vreme():
-#    return 1000
-
-#print(proveri_ogranicenje("test123", vreme_funkcija=lazno_vreme))

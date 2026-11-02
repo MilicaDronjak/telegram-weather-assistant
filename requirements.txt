@@ -6,3 +6,4 @@ flask #pokretanje veb aplikacije
 google-api-python-client #komunikacija sa Google Calendar API-jem
 google-auth-oauthlib #Google OAuth autorizacija
 google-auth-httplib2 #podrška za Google API komunikaciju
+pytest #automatsko pokretanje Unit i Integration testova

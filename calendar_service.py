@@ -118,14 +118,7 @@ def proveri_slobodan_termin(service, pocetak, kraj):
 
     dogadjaji = rezultat.get("items", [])
 
-    zauzeti = [
-        dogadjaj
-        for dogadjaj in dogadjaji
-        if dogadjaj.get("transparency", "opaque") != "transparent"
-        and dogadjaj.get("status") != "cancelled"
-    ]
-
-    return len(zauzeti) == 0
+    return len(dogadjaji) == 0
 
 def dodaj_dogadjaj(service, naziv, datum, vreme, trajanje=60):
     pocetak = datetime.fromisoformat(f"{datum}T{vreme}").astimezone()

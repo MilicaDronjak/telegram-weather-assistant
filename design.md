@@ -17,3 +17,6 @@
 
 4.Ako koristiš LLM, za šta ga koristiš?
     LLM koristim kako bi moj bot mogao da razume pitanja koja korisnik postavlja običnim jezikom. Preko Groq API-ja koristim AI model koji iz korisnikovog pitanja prepoznaje lokaciju, datum i vrstu vremenske prognoze. Na primer, ako korisnik napiše „Kakvo će vreme biti sutra u Novom Sadu?“, model prepoznaje da se traži dnevna prognoza za Novi Sad za sutrašnji datum. LLM ne koristim za dobijanje podataka o vremenu, već samo za razumevanje pitanja. Stvarne podatke o temperaturi i padavinama preuzimam preko Open-Meteo API-ja.
+
+5.Rate Limiter
+    
