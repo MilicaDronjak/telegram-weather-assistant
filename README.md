@@ -1,8 +1,9 @@
 
-# Telegram Weather Assistant
+# Smart Assistant
 
-Telegram bot i veb-aplikacija koji koriste veštačku inteligenciju za razumevanje korisničkih pitanja i izvršavanje različitih zadataka. Aplikacija omogućava korisniku da dobije informacije o vremenskoj prognozi, kao i da upravlja obavezama u Google kalendaru kroz pregled događaja, proveru slobodnih termina, dodavanje, izmenu i brisanje događaja.
-Korisnik može da komunicira sa asistentom putem Telegram bota ili web_chat-a, koristeći prirodan jezik.
+Smart Assistant je aplikacija koja koristi veštačku inteligenciju za razumevanje korisničkih pitanja i izvršavanje različitih zadataka. Omogućava dobijanje informacija o vremenskoj prognozi, kao i upravljanje obavezama u Google kalendaru kroz pregled događaja, proveru slobodnih termina, dodavanje, izmenu i brisanje događaja.
+
+Korisnik može da komunicira sa asistentom putem Telegram bota ili web aplikacije, koristeći prirodan jezik. Web aplikacija dodatno omogućava registraciju i prijavu korisnika, čime se obezbeđuje kontrolisan pristup njenim funkcionalnostima.
 
 ## Funkcionalnosti
 
@@ -16,7 +17,7 @@ Korisnik može da komunicira sa asistentom putem Telegram bota ili web_chat-a, k
 - Obrada nepoznatih gradova i datuma za koje prognoza nije dostupna
 
 **Google kalendar**
-- Pregled predstojećih događaja i obaveza za određeni datum
+- Pregled događaja i obaveza za određeni datum
 - Provera slobodnih i zauzetih termina
 - Dodavanje novih događaja u kalendar
 - Izmena datuma i vremena postojećih događaja
@@ -24,28 +25,56 @@ Korisnik može da komunicira sa asistentom putem Telegram bota ili web_chat-a, k
 - Potvrđivanje i otkazivanje dodavanja, izmene i brisanja događaja
 - Prepoznavanje zahteva za rad sa kalendarom iz prirodnog jezika
 
+**Registracija i autentifikacija korisnika**
+- Registracija novih korisnika putem web aplikacije
+- Prijava i odjava korisnika
+- Bezbedno čuvanje lozinki u obliku hash vrednosti
+- Čuvanje korisničkih naloga u SQLite bazi podataka
+- Upravljanje korisničkim sesijama
+- Ograničavanje pristupa web chatu neprijavljenim korisnicima
+
+**Ograničenje zahteva**
+- Ograničenje broja zahteva radi zaštite aplikacije od prekomernog korišćenja
+- Čuvanje podataka o zahtevima u SQLite bazi
+- Ograničavanje pokušaja prijave i registracije
+- Prikaz odgovarajuće poruke kada korisnik prekorači dozvoljeni broj zahteva
+
 **Komunikacija**
-- Komunikacija sa asistentom putem Telegram bota i web_chat-a
+- Komunikacija sa asistentom putem Telegram bota i web aplikacije
 - Automatsko prepoznavanje da li se korisnički zahtev odnosi na vremensku prognozu ili Google kalendar
+- Razumevanje korisničkih zahteva napisanih prirodnim jezikom
+- Postavljanje dodatnih pitanja kada nedostaju podaci potrebni za izvršavanje zahteva
+- Nastavak razgovora uz korišćenje prethodno unetihinformacija
 
 ## Korišćene tehnologije
-
+Backend i web aplikacija
 - Python
+- Flask
+- SQLite
+- Werkzeug (hashiranje i provera lozinki)
+
+Veštačka inteligencija i ekstremni servisi
 - Telegram Bot API
 - Groq API (LLM)
 - Open-Meteo API
 - Google Calendar API
 - Google OAuth 2.0
+
+Python biblioteke
 - python-telegram-bot
 - google-api-python-client
 - google-auth-oauthlib
 - google-auth-httplib2
 - requests
 - python-dotenv
-- Flask
+
+Frontend
 - HTML
 - CSS
 - JavaScript
+
+Testiranje
+- pytest
 
 ## Pokretanje projekta
 
@@ -81,6 +110,7 @@ Korisnik može da komunicira sa asistentom putem Telegram bota ili web_chat-a, k
 
 9. Otvoriti web_chat u pregledaču na adresi:
    http://127.0.0.1:5000
+   (Prilikom prvog pristupa web aplikaciji potrebno je registrovati korisnički nalog. Nakon uspešne registracije korisnik može da se prijavi i pristupi web chatu.)
 
 ## Primeri pitanja
 
@@ -102,25 +132,65 @@ Prilikom dodavanja, izmene i brisanja događaja, asistent traži potvrdu korisni
 
 ## Način rada
 
-1. Korisnik šalje poruku putem Telegram bota ili web_chat-a.
-2. Groq AI analizira poruku i prepoznaje da li se zahtev odnosi na vremensku prognozu ili Google kalendar.
-3. Na osnovu prepoznate namere, aplikacija obrađuje zahtev.
+1. Korisnik šalje poruku putem Telegram bota ili web aplikacije.
+2. Za korišćenje web aplikacije potrebna je registracija i prijava korisnika.
+3. Pre obrade poruke proverava se ograničenje broja zahteva(rate-limiter)
+4. Groq AI analizira poruku i prepoznaje da li se zahtev odnosi na vremensku prognozu ili Google kalendar.
+5. Na osnovu prepoznate namere, aplikacija obrađuje zahtev.
 
 **Vremenska prognoza**
 
-4. Groq AI izdvaja potrebne podatke iz poruke, kao što su lokacija, datum, vreme i tip vremenske prognoze.
-5. Ako neki podatak nedostaje, asistent traži dopunu i pamti prethodno unete podatke.
-6. Pomoću Open-Meteo Geocoding API-ja aplikacija pronalazi geografske koordinate tražene lokacije.
-7. Open-Meteo Forecast API vraća odgovarajuće vremenske podatke.
-8. Aplikacija obrađuje dobijene podatke i šalje odgovor korisniku.
-9. Nakon završetka zahteva, sačuvani podaci se uklanjaju kako bi naredno pitanje moglo nezavisno da se obradi.
+6. Groq AI izdvaja potrebne podatke iz poruke, kao što su lokacija, datum, vreme i tip vremenske prognoze.
+7. Ako neki podatak nedostaje, asistent traži dopunu i pamti prethodno unete podatke.
+8. Pomoću Open-Meteo Geocoding API-ja aplikacija pronalazi geografske koordinate tražene lokacije.
+9. Open-Meteo Forecast API vraća odgovarajuće vremenske podatke.
+10. Aplikacija obrađuje dobijene podatke i šalje odgovor korisniku.
+11. Nakon završetka zahteva, sačuvani podaci se uklanjaju kako bi naredno pitanje moglo nezavisno da se obradi.
 
 **Google kalendar**
 
-4. Groq AI prepoznaje traženu akciju: pregled događaja, proveru slobodnog termina, dodavanje, izmenu ili brisanje događaja.
-5. Iz korisničke poruke izdvajaju se potrebni podaci, kao što su naziv događaja, datum, vreme početka i vreme kraja.
-6. Aplikacija uspostavlja vezu sa Google Calendar API-jem pomoću OAuth 2.0 autorizacije.
-7. U zavisnosti od zahteva, aplikacija preuzima događaje, proverava zauzetost termina ili priprema dodavanje, izmenu ili brisanje događaja.
-8. Prilikom dodavanja, izmene i brisanja događaja, aplikacija traži potvrdu korisnika. Odgovorom „da“ korisnik potvrđuje operaciju, a odgovorom „ne“ je otkazuje.
-9. Nakon potvrde, aplikacija izvršava odgovarajuću operaciju preko Google Calendar API-ja i obaveštava korisnika o rezultatu.
-10. Nakon završetka ili otkazivanja operacije, privremeno sačuvani podaci o zahtevu se uklanjaju.
+6. Groq AI prepoznaje traženu akciju: pregled događaja, proveru slobodnog termina, dodavanje, izmenu ili brisanje događaja.
+7. Iz korisničke poruke izdvajaju se potrebni podaci, kao što su naziv događaja, datum, vreme početka i vreme kraja.
+8. Aplikacija uspostavlja vezu sa Google Calendar API-jem pomoću OAuth 2.0 autorizacije.
+9. U zavisnosti od zahteva, aplikacija preuzima događaje, proverava zauzetost termina ili priprema dodavanje, izmenu ili brisanje događaja.
+10. Prilikom dodavanja, izmene i brisanja događaja, aplikacija traži potvrdu korisnika. Odgovorom „da“ korisnik potvrđuje operaciju, a odgovorom „ne“ je otkazuje.
+11. Nakon potvrde, aplikacija izvršava odgovarajuću operaciju preko Google Calendar API-ja i obaveštava korisnika o rezultatu.
+12. Nakon završetka ili otkazivanja operacije, privremeno sačuvani podaci o zahtevu se uklanjaju.
+
+## Testiranje
+
+Za testiranje aplikacije koristi se biblioteka pytest. Implementirani su Unit i Integration testovi koji proveravaju ispravnost pojedinačnih funkcija i međusobnu saradnju komponenti aplikacije.
+
+**Unit testovi**
+- Testiranje funkcija za obradu vremenske prognoze i proveru potrebnih podataka.
+- Testiranje funkcija za rad sa Google kalendarom.
+- Testiranje Rate Limitera, uključujući ograničenje broja zahteva i istek vremenskog perioda.
+- Testiranje obrade odgovora LLM-a, uključujući neispravan JSON, nepotpune podatke i greške API-ja.
+
+**Integration testovi**
+- Testiranje obrade korisničkih zahteva putem Flask web-aplikacije.
+- Testiranje komunikacije sa Telegram botom.
+- Testiranje pamćenja podataka kroz više poruka.
+- Testiranje potvrđivanja i otkazivanja dodavanja događaja u kalendar.
+
+**Testiranje autentifikacije**
+- Testiranje uspešne registracije korisnika.
+- Testiranje registracije sa prekratkom lozinkom i već postojećim korisničkim imenom.
+- Testiranje uspešne i neuspešne prijave korisnika.
+- Testiranje odjave korisnika.
+- Testiranje zaštite web aplikacije od pristupa neprijavljenih korisnika.
+- Testiranje ograničenja pokušaja prijave i registracije.
+
+Prilikom testiranja koriste se mock objekti kako bi se simulirali odgovori spoljnih servisa, bez slanja stvarnih zahteva ka Groq, Open-Meteo i Google Calendar API-jima.
+
+Testovi se pokreću iz glavnog direktorijuma projekta komandom: python -m pytest -v
+
+Ukupno je implementiran **61 test**, raspoređen u šest fajlova:
+
+- `test_weather.py` – 22 testa
+- `test_calendar.py` – 9 testova
+- `test_rate_limiter.py` – 4 testa
+- `test_integration.py` – 10 testova
+- `test_bot.py` – 6 testova
+- `test_auth.py` - 10 testova
+

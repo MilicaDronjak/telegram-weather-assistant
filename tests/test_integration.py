@@ -1,13 +1,17 @@
-
 from unittest.mock import patch
 from web_app import app
 
+def prijavi_test_korisnika(client):
+    with client.session_transaction() as sesija:
+        sesija["user_id"] = 1
 
 def test_prazna_poruka():
     app.config["TESTING"] = True
 
     with patch("web_app.proveri_ogranicenje", return_value=True):
         with app.test_client() as client:
+            prijavi_test_korisnika(client)
+
             odgovor = client.post(
                 "/chat",
                 json={"poruka": ""}
@@ -23,6 +27,8 @@ def test_blokiran_zahtev():
 
     with patch("web_app.proveri_ogranicenje", return_value=False):
         with app.test_client() as client:
+            prijavi_test_korisnika(client)
+
             odvogor = client.post(
                 "/chat",
                 json={"poruka": "Kakvo je vreme danas?"}
@@ -55,6 +61,8 @@ def test_pregled_kalendara():
          patch("web_app.dogadjaji_za_dan", return_value=dogadjaji):
 
         with app.test_client() as client:
+            prijavi_test_korisnika(client)
+            
             odgovor = client.post(
                 "/chat",
                 json={"poruka": "Šta imam u kalendaru sutra?"}
@@ -82,6 +90,8 @@ def test_dodavanje_dogadjaja_sa_potvrdom():
          patch("web_app.dodaj_dogadjaj") as mock_dodaj:
 
         with app.test_client() as client:
+            prijavi_test_korisnika(client)
+
             prvi_odgovor = client.post(
                 "/chat",
                 json={"poruka": "Dodaj sastanal 5. novembra u 10"}
@@ -119,6 +129,8 @@ def test_otkazivanje_dodavanja_dogadjaja():
          patch("web_app.dodaj_dogadjaj") as mock_dodaj:
 
         with app.test_client() as client:
+            prijavi_test_korisnika(client)
+
             prvi_odgovor = client.post(
                 "/chat",
                 json={"poruka": "Dodaj sastanak 5. novembra u 10"}
@@ -155,6 +167,8 @@ def test_neispravna_potvrda_dodavanja():
          patch("web_app.dodaj_dogadjaj") as mock_dodaj:
 
         with app.test_client() as client:
+            prijavi_test_korisnika(client)
+
             client.post(
                 "/chat",
                 json={"poruka": "Dodaj sastanak 5. novembra u 10"}
@@ -191,6 +205,8 @@ def test_vremenska_prognoza():
                return_value="Prognoza za Novi Sad: 15°C.") as mock_prognoza:
 
         with app.test_client() as client:
+            prijavi_test_korisnika(client)
+
             odgovor = client.post(
                 "/chat",
                 json={"poruka": "Kakvo će vreme biti sutra u Novom Sadu?"}
@@ -221,6 +237,8 @@ def test_vremenska_prognoza_bez_lokacije():
          patch("web_app.preuzmi_prognozu") as mock_prognoza:
 
         with app.test_client() as client:
+            prijavi_test_korisnika(client)
+
             odgovor = client.post(
                 "/chat",
                 json={"poruka": "Kakvo će vreme biti sutra?"}
@@ -258,6 +276,8 @@ def test_nastavak_razgovora_za_prognozu():
                return_value="Prognoza za Novi Sad.") as mock_prognoza:
 
         with app.test_client() as client:
+            prijavi_test_korisnika(client)
+
             prvi_odgovor = client.post(
                 "/chat",
                 json={"poruka": "Kakvo će vreme biti sutra?"}
@@ -297,6 +317,8 @@ def test_brisanje_sesije_nakon_prognoze():
                return_value="Prognoza za Novi Sad."):
 
         with app.test_client() as client:
+            prijavi_test_korisnika(client)
+
             odgovor = client.post(
                 "/chat",
                 json={"poruka": "Kakvo je vreme sutra u Novom Sadu?"}

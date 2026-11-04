@@ -80,3 +80,93 @@ button:hover {
 .unos-poruke button {
     flex-shrink: 0;
 }
+
+.chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 590px;
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.chat-header h1 {
+    margin: 0;
+    text-align: center;
+}
+
+#logout-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 8px 14px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+/*login i register stranica */
+.auth-page {
+    min-height: 100vh;
+    box-sizing: border-box;
+    justify-content: center;
+}
+
+.auth-page h1 {
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.auth-card {
+    background: white;
+    width: 100%;
+    max-width: 400px;
+    padding: 35px;
+    box-sizing: border-box;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.auth-card h2 {
+    color: #46634a;
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 25px;
+}
+
+.auth-card from {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.auth-card input {
+    width: 100%;
+    max-width: none;
+    box-sizing: border-box;
+}
+
+.auth-card button {
+    width: 100%;
+    margin-top: 10px;
+}
+
+.auth-link {
+    text-align: center;
+    margin-bottom: 0;
+}
+
+.auth-link a {
+    color: #46634a;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.auth-link a:hover {
+    text-decoration: underline;
+}
+
+#poruka {
+    color: #b33a3a;
+    text-align: center;
+}

@@ -10,3 +10,8 @@ credentials.json
 token.json
 .pytest_cache/
 .coverage
+users.db
+cookies.txt
+*.db-journal
+*.db-wal
+*.db-shm

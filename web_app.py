@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, redirect
 from weather_service import analiziraj_pitanje, preuzmi_prognozu, proveri_nedostajuce_podatke, spoji_podatke
 from rate_limiter import proveri_ogranicenje
 from intent_service import prepoznaj_nameru
@@ -15,16 +15,106 @@ from calendar_service import (
     izmeni_dogadjaj,
     obrisi_dogadjaj
 )
+from auth_service import napravi_tabelu_korisnika, registruj_korisnika, prijavi_korisnika
 
 app = Flask(__name__)
 
 load_dotenv()
 
 app.secret_key = os.environ["FLASK_SECRET_KEY"]
+app.config["SESSION_COOKIE_HTTPONLY"] = True #sprecava direktno citanje sesijskih kolacica
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax" #ogranicava slanje kolacica uz zahteve sa drugih sajtova i smanjuje rizik od CSRF napada
 
 @app.route("/")
 def pocetna():
+    if "user_id" not in session:
+        return redirect("/login")
     return render_template("index.html")
+
+@app.route("/login", methods=["GET"])
+def login_stranica():
+    if "user_id" in session:
+        return redirect("/")
+    return render_template("login.html")
+
+@app.route("/register", methods=["GET"])
+def registracija_stranica():
+    if "user_id" in session:
+        return redirect("/")
+    return render_template("register.html")
+
+@app.route("/register", methods=["POST"])
+def registracija():
+    korisnik = f"register:{request.remote_addr}"
+
+    if not proveri_ogranicenje(korisnik):
+        return jsonify({
+            "greska": "Previše pokušaja registracije. Pokušajte ponovo za minut."
+        }), 429
+    
+    podaci = request.get_json(silent=True) or {}
+
+    korisnicko_ime = podaci.get("korisnicko_ime", "").strip()
+    lozinka = podaci.get("lozinka", "")
+
+    if not korisnicko_ime or len(lozinka) < 8:
+        return jsonify({
+            "greska": "Unesite korisničko ime i lozinku od najmanje 8 karaktera."
+        }), 400
+
+    napravi_tabelu_korisnika()
+
+    uspeh = registruj_korisnika(korisnicko_ime, lozinka)
+
+    if not uspeh:
+        return jsonify({
+            "greska": "Korisničko ime već postoji."
+        }), 409
+
+    return jsonify({
+        "odgovor": "Registracija je uspešna."
+    }), 201
+
+@app.route("/login", methods=["POST"])
+def login():
+    korisnik = f"login:{request.remote_addr}"
+
+    if not proveri_ogranicenje(korisnik):
+        return jsonify ({
+            "greska": "Previše pokušaja prijave. Pokušajte ponovo za koji minut."
+        }), 429
+
+    podaci = request.get_json(silent=True) or {}
+
+    korisnicko_ime = podaci.get("korisnicko_ime", "").strip()
+    lozinka = podaci.get("lozinka", "")
+
+    if not korisnicko_ime or not lozinka:
+        return jsonify({
+            "greska": "Unesite korisničko ime i lozinku."
+        }), 400
+
+    korisnik_id = prijavi_korisnika(korisnicko_ime, lozinka)
+
+    if korisnik_id is None:
+        return jsonify({
+            "greska": "Pogrešno korisničko ime ili lozinka."
+        }), 401
+
+    session.clear()
+    session["user_id"] = korisnik_id
+
+    return jsonify({
+        "odgovor": "Uspešno ste se prijavili."
+    }), 200
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+
+    return jsonify({
+        "odgovor": "Uspešno ste se odjavili."
+    }), 200
 
 def sacuvaj_podatke(lokacija, datum, tip, sat):
     session["lokacija"] = lokacija
@@ -34,6 +124,10 @@ def sacuvaj_podatke(lokacija, datum, tip, sat):
 
 @app.route("/chat", methods=["POST"])
 def chat():
+    if "user_id" not in session:
+        return jsonify({
+            "greska": "Morate biti prijavljeni da biste koristili chat."
+        }), 401
     try:
         korisnik = f"web:{request.remote_addr}"
 
@@ -457,7 +551,11 @@ def chat():
 
         if odgovor is None:
             odgovor = preuzmi_prognozu(lokacija, datum, tip, sat)
-            session.clear()
+
+            for kljuc in ("lokacija", "datum", "tip", "sat"):
+                session.pop(kljuc, None)
+
+            return jsonify({"odgovor": odgovor})
 
         return jsonify({"odgovor": odgovor})
 
@@ -466,5 +564,5 @@ def chat():
         return jsonify({"odgovor": "Došlo je do greške pri obradi pitanja."}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)
         

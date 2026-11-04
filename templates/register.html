@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">    
+    <title>Registracija - Smart Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css')}}">
+</head>
+<body>
+    <h1>Smart Assistant</h1>
+
+    <div class="auth-card">
+        <h2>Registracija korisnika</h2>
+
+        <form id="register-form">
+            <label for="korisnicko_ime">Korisničko ime:</label>
+            <input type="text" id="korisnicko_ime" required>
+
+            <label for="lozinka">Lozinka:</label>
+            <input type="password" id="lozinka" minlength="8" required>
+            
+            <button type="submit">Registruj se</button>
+        </form>
+        <p id="poruka"></p>
+        <p class="auth-link">
+            Već imate nalog?
+            <a href="/login">Prijavi se</a>
+        </p>
+    </div>
+    <script>
+        document.getElementById("register-form").addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const korisnickoIme = document.getElementById("korisnicko_ime").value.trim();
+            const lozinka = document.getElementById("lozinka").value;
+            const poruka = document.getElementById("poruka");
+
+            try {
+                const odgovor = await fetch("/register", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        korisnicko_ime: korisnickoIme,
+                        lozinka: lozinka
+                    })
+                });
+                const podaci = await odgovor.json();
+
+                if(odgovor.ok) {
+                    window.location.href = "/login";
+                } else {
+                    poruka.textContent = podaci.greska;
+                }
+            } catch (greska) {
+                poruka.textContent = "Došlo je do greške. Pokušajte ponovo."
+            }
+        });
+    </script>
+</body>
+</html>

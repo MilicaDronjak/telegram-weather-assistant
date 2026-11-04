@@ -3,11 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weather Assistant</title>
+    <title>Smart Assistant</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Weather Assistant</h1>
+    <header class="chat-header">
+        <h1>Smart Assistant</h1>
+        <button id="logout-btn" type="button">Odjavi se</button>
+    </header>
     <div id="chat">
         <p class="poruka bot"><strong>Bot:</strong> Zdravo! Kako mogu da ti pomognem?</p>
     </div>
@@ -16,5 +19,21 @@
         <button id="posalji">Pošalji</button>
         <script src="{{ url_for('static', filename='script.js') }}"></script>
     </div>
+    <script>
+        document.getElementById("logout-btn").addEventListener("click", async function () {
+            try {
+                const odgovor = await fetch("/logout", {
+                    method: "POST"
+                });
+                if (odgovor.ok) {
+                    window.location.href ="/login";
+                } else {
+                    alert("Odjava nije uspela. Pokušajte ponovo.")
+                }
+            } catch (greška) {
+                alert("Došlo je do greške prilikom odjave.")
+            }
+        });
+    </script>
 </body>
 </html>
